@@ -29,7 +29,7 @@ class IndexHandler(web.RequestHandler):
         self.render("index.html")
 
 class SocketHandler(websocket.WebSocketHandler):
-    
+
     def check_origin(self, origin):
         return True
 
@@ -42,13 +42,12 @@ class SocketHandler(websocket.WebSocketHandler):
             span.set_tag("tenant", tenant)
             clients[tenant] = self
             self.flush_messages(tenant)
-            span.finish()
 
     # keep the connection alive through proxies as much as possible
     def send_hello(self):
         self.ping('ping')
-        
-    # see if there are any messages to forward on          
+
+    # see if there are any messages to forward on
     def flush_messages(self, tenant):
         with opentracing.tracer.start_span('flush_messages') as span:
             if tenant in store:
@@ -58,7 +57,6 @@ class SocketHandler(websocket.WebSocketHandler):
                 for payload in messages:
                     self.write_message(json.dumps(payload, ensure_ascii=False))
             store[tenant] = []
-            span.finish()
 
     def on_close(self):
         with opentracing.tracer.start_span('unsubscribe') as span:
@@ -68,7 +66,6 @@ class SocketHandler(websocket.WebSocketHandler):
             if tenant in clients:
                 span.set_tag("is_tenant_client", "yes")
                 del clients[tenant]
-            span.finish()
 
 
 class ApiHandler(web.RequestHandler):
@@ -96,7 +93,6 @@ class ApiHandler(web.RequestHandler):
                 clients[tenant].write_message(json.dumps(payload, ensure_ascii=False))
             else:
                 self.store_message(tenant, payload)
-            span.finish()
             self.finish()
 
     def store_message(self, tenant, payload):
