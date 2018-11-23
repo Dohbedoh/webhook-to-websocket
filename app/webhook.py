@@ -10,7 +10,7 @@ from ddtrace.opentracer import Tracer, set_global_tracer
 # here we keep the currently connected clients
 clients = {}
 
-# Here we can keep things to store and forward if a cient reconnects
+# Here we can keep things to store and forward if a client reconnects
 store = {}
 
 
@@ -42,6 +42,7 @@ class SocketHandler(websocket.WebSocketHandler):
             span.set_tag("tenant", tenant)
             clients[tenant] = self
             self.flush_messages(tenant)
+            span.set_tag("clients", clients)
 
     # keep the connection alive through proxies as much as possible
     def send_hello(self):
@@ -66,6 +67,7 @@ class SocketHandler(websocket.WebSocketHandler):
             if tenant in clients:
                 span.set_tag("is_tenant_client", "yes")
                 del clients[tenant]
+            span.set_tag("clients", clients)
 
 
 class ApiHandler(web.RequestHandler):
@@ -83,13 +85,13 @@ class ApiHandler(web.RequestHandler):
             span.set_tag("tenant", tenant)
             endpoint = "/" + "/".join(publishedUri.split('/')[1:])
             span.set_tag("endpoint", endpoint)
+            span.set_tag("clients", clients)
             headers = {}
             for header in self.request.headers:
                 headers[header] = self.request.headers[header]
             payload = {'headers': headers, 'requestPath': endpoint, 'body': self.request.body}
 
             if tenant in clients:
-                span.set_tag("is_tenant_client", "yes")
                 clients[tenant].write_message(json.dumps(payload, ensure_ascii=False))
             else:
                 self.store_message(tenant, payload)
@@ -98,6 +100,7 @@ class ApiHandler(web.RequestHandler):
     def store_message(self, tenant, payload):
         if tenant in store:
             store[tenant].append(payload)
+            span.set_tag("stored_messages", len(store[tenant]))
 
 app = web.Application([
     (r'/', IndexHandler),
