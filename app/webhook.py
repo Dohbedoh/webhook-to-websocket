@@ -34,7 +34,7 @@ class SocketHandler(websocket.WebSocketHandler):
         return True
 
     def open(self):
-        with opentracing.tracer.start_span('unsubscribe') as span:
+        with opentracing.tracer.start_span('subscribe') as span:
             self.timeout = None
             self.callback = PeriodicCallback(self.send_hello, 20000)
             self.callback.start()
